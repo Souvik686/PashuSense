@@ -1,6 +1,6 @@
 # 🐄 PashuSense
 
-> AI-powered cattle breed recognition web app — identifies breed, milk production & health tips from a photo.
+> AI-powered cattle breed recognition prototype web app — identifies breed, milk production & health tips from a photo.
 
 ---
 
