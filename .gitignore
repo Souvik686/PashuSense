@@ -1,0 +1,21 @@
+# ── Large model binary ────────────────────────────────────────────────────────
+# cattle_breed_model.h5 is included in the repo (11 MB, needed to run the app)
+# If it exceeds GitHub limits, use Git LFS: https://git-lfs.github.com
+
+# ── Training dataset (hundreds of images, not needed to run) ──────────────────
+Cattle Breeds/
+
+# ── Cattles folder (contains a 237 MB video — exceeds GitHub's 100 MB limit) ──
+Cattles/
+
+# ── Runtime artifacts ─────────────────────────────────────────────────────────
+uploaded.jpg
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# ── OS / editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/

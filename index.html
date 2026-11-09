@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PashuSense Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;700&family=Roboto:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary-green: #3D8B41;
+            --secondary-blue: #1976D2;
+            --dark-gray: #2E2E2E;
+            --medium-gray: #555555;
+            --light-gray: #F5F6FA;
+            --card-bg: #ffffff;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--light-gray);
+            color: var(--medium-gray);
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 50px;
+            background-color: var(--primary-green);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo-container img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+        }
+
+        .logo-container h1 {
+            font-family: 'Roboto Slab', serif;
+            font-size: 28px;
+            margin-left: 15px;
+        }
+
+        nav {
+            display: flex;
+            gap: 25px;
+        }
+
+        nav a {
+            font-weight: 500;
+            font-size: 16px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: 0.3s;
+        }
+
+        nav a:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* DASHBOARD HERO */
+        #dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1200px;
+            margin: 60px auto;
+            padding: 0 20px;
+        }
+
+        .hero-text {
+            flex: 1 1 500px;
+            animation: fadeSlide 1s ease forwards;
+            opacity: 0;
+        }
+
+        .hero-text h2 {
+            font-size: 42px;
+            color: var(--dark-gray);
+            margin-bottom: 20px;
+        }
+
+        .hero-text p {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            color: var(--medium-gray);
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* PROFESSIONAL BUTTONS */
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 28px;
+            font-size: 17px;
+            font-weight: 600;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .scan-button {
+            background: linear-gradient(135deg, var(--primary-green), #45A049);
+            color: white;
+        }
+
+        .scan-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .farm-button {
+            background: linear-gradient(135deg, var(--secondary-blue), #2196F3);
+            color: white;
+        }
+
+        .farm-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .hero-image {
+            flex: 1 1 400px;
+            text-align: center;
+            animation: fadeSlide 1.2s ease forwards;
+            opacity: 0;
+        }
+
+        .hero-image img {
+            width: 90%;
+            max-width: 400px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px var(--shadow-color);
+            transition: transform 0.3s;
+        }
+
+        .hero-image img:hover {
+            transform: scale(1.05);
+        }
+
+        /* FEATURES */
+        .features {
+            background: var(--light-gray);
+            padding: 60px 20px;
+        }
+
+        .features h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 40px;
+            color: var(--dark-gray);
+        }
+
+        .feature-grid {
+            max-width: 1100px;
+            margin: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .feature-card img {
+            width: 60px;
+            margin-bottom: 15px;
+        }
+
+        .feature-card h3 {
+            margin-bottom: 10px;
+            font-size: 20px;
+            color: var(--dark-gray);
+        }
+
+        .feature-card p {
+            font-size: 15px;
+            color: var(--medium-gray);
+        }
+
+        .feature-card.show {
+            opacity: 1;
+            transform: translateY(0);
+            transition: all 0.6s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px var(--shadow-color);
+        }
+
+        /* UPLOAD / SCAN CATTLE */
+        #uploadSection {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+            display: none;
+        }
+
+        #uploadSection img {
+            max-width: 100%;
+            margin-top: 20px;
+            border-radius: 12px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #4CAF50;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* MY FARM */
+        #myFarmSection {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+            display: none;
+        }
+
+        #farmList {
+            list-style: none;
+            padding: 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        #farmList li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #farmList img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 10px;
+        }
+
+        /* TOAST */
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            right: -300px;
+            background-color: var(--primary-green);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.6s ease;
+            z-index: 2000;
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-320px);
+            pointer-events: auto;
+        }
+
+        footer {
+            text-align: center;
+            padding: 25px;
+            background-color: #e8e8e8;
+            font-size: 14px;
+            color: var(--medium-gray);
+        }
+
+        @keyframes fadeSlide {
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            #dashboard {
+                flex-direction: column-reverse;
+                text-align: center;
+            }
+
+            .hero-text h2 {
+                font-size: 32px;
+            }
+
+            .cta-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- HEADER -->
+    <header>
+        <div class="logo-container">
+            <img src="https://i.postimg.cc/Hxytg6cy/plogo.png" alt="PashuSense Logo">
+
+            <h1>PashuSense</h1>
+        </div>
+        <nav>
+            <a href="#" onclick="showDashboard()">Dashboard</a>
+            <a href="#" onclick="showSection('myFarmSection')">My Farm</a>
+            <a href="#" onclick="showSection('uploadSection')">Scan Cattle</a>
+        </nav>
+    </header>
+
+    <!-- DASHBOARD HERO -->
+    <section id="dashboard">
+        <div class="hero-text">
+            <h2>Smarter Cattle Management</h2>
+            <p>Recognize cattle breeds instantly, track farm records, and boost productivity with PashuSense.</p>
+            <div class="cta-buttons">
+                <button class="button scan-button" onclick="showSection('uploadSection')">
+                    <img src="https://img.icons8.com/ios-filled/50/ffffff/camera.png" alt="camera icon">
+                    Scan Cattle
+                </button>
+                <button class="button farm-button" onclick="showSection('myFarmSection')">
+                    <img src="https://img.icons8.com/ios-filled/50/ffffff/cow.png" alt="cattle icon">
+                    My Farm
+                </button>
+            </div>
+            <div id="addCattleContainer"></div>
+        </div>
+        <div class="hero-image">
+            <img src="https://img.freepik.com/premium-vector/aistreamlined-livestock-management-abstract-concept-vector-illustration_107173-96914.jpg" alt="Cattle management illustration">
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features" id="featuresSection">
+        <h2>Why Choose PashuSense?</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <img src="https://img.icons8.com/ios-filled/100/3D8B41/artificial-intelligence.png" alt="AI icon">
+                <h3>AI-Powered Recognition</h3>
+                <p>Identify cattle breeds instantly with our advanced AI recognition system.</p>
+            </div>
+            <div class="feature-card">
+                <img src="https://img.icons8.com/ios-filled/100/3D8B41/farm.png" alt="farm icon">
+                <h3>Farm Management</h3>
+                <p>Keep track of all your cattle, health records, and farm operations in one dashboard.</p>
+            </div>
+            <div class="feature-card">
+                <img src="https://img.icons8.com/ios-filled/100/3D8B41/statistics.png" alt="analytics icon">
+                <h3>Smart Insights</h3>
+                <p>Get data-driven insights to improve efficiency and maximize your farm’s productivity.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- UPLOAD / SCAN CATTLE -->
+    <section id="uploadSection">
+        <h2>Upload a Cattle Image</h2><br>
+        <input type="file" id="fileInput" accept="image/*"><br><br>
+        <button class="button scan-button" onclick="uploadImage()">Predict Breed</button><br><br>
+        <div id="spinner" class="spinner" style="display:none;"></div>
+        <p id="result"></p>
+        <img id="preview" src="" style="margin-top: 15px;">
+        <br><br>
+        <button class="button scan-button" id="addCattleBtn" style="display:none;" onclick="addToFarm()">Add to My Farm</button>
+        <br><br>
+        <button class="button farm-button" onclick="showDashboard()">Back</button>
+    </section>
+
+    <!-- MY FARM -->
+    <section id="myFarmSection">
+        <h2>My Farm</h2>
+        <ul id="farmList"></ul>
+        <button class="button farm-button" onclick="showDashboard()">Back</button>
+    </section>
+
+    <footer>&copy; 2025 PashuSense. All rights reserved.</footer>
+    <div id="toast">Cattle added to your farm!</div>
+
+    <script>
+        function showSection(id) {
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('myFarmSection').style.display = 'none';
+            document.getElementById('featuresSection').style.display = 'none';
+            document.getElementById(id).style.display = 'block';
+            if (id === 'myFarmSection') loadFarm();
+            if (id === 'uploadSection') resetScanSection();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetScanSection() {
+            document.getElementById('result').innerHTML = '';
+            document.getElementById('preview').src = '';
+            document.getElementById('fileInput').value = '';
+            document.getElementById('addCattleBtn').style.display = 'none';
+            document.getElementById('spinner').style.display = 'none';
+        }
+
+        function showDashboard() {
+            document.getElementById('dashboard').style.display = 'flex';
+            document.getElementById('featuresSection').style.display = 'block';
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('myFarmSection').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showAddCattle() {
+            const container = document.getElementById('addCattleContainer');
+            const data = sessionStorage.getItem('scannedCattle');
+            if (data) {
+                container.innerHTML = `<button class="button scan-button" onclick="addToFarm()">Add Cattle to My Farm</button>`;
+            } else { container.innerHTML = ''; }
+        }
+
+        function addToFarm() {
+            const data = sessionStorage.getItem('scannedCattle');
+            if (!data) return;
+            const cattle = JSON.parse(data);
+            saveToFarm(cattle);
+        }
+
+        function saveToFarm(cattle) {
+            let farm = JSON.parse(localStorage.getItem('myFarm')) || [];
+            farm.push(cattle);
+            localStorage.setItem('myFarm', JSON.stringify(farm));
+            sessionStorage.removeItem('scannedCattle');
+            showAddCattle();
+            loadFarm();
+            showToast('Cattle added to your farm!');
+        }
+
+        function loadFarm() {
+            const farmList = document.getElementById('farmList');
+            farmList.innerHTML = '';
+            let farm = JSON.parse(localStorage.getItem('myFarm')) || [];
+            if (farm.length === 0) {
+                farmList.innerHTML = '<li>No animals added yet.</li>';
+                return;
+            }
+            farm.forEach(animal => {
+                const li = document.createElement('li');
+                li.innerHTML = `<img src="${animal.image}" alt="Cattle" />
+                                <div><strong>ID:</strong> ${animal.id}<br><strong>Breed:</strong> ${animal.breed || 'Unknown'}</div>`;
+                farmList.appendChild(li);
+            });
+        }
+
+        function uploadImage() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) { showToast("Select an image first"); return; }
+
+            document.getElementById("spinner").style.display = "inline-block";
+            document.getElementById("result").innerHTML = "";
+            document.getElementById("addCattleBtn").style.display = "none";
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                // Show preview immediately
+                document.getElementById('preview').src = dataUrl;
+
+                const formData = new FormData();
+                formData.append("file", file);
+
+                fetch("/predict", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("spinner").style.display = "none";
+                    if (data.error) {
+                        // Show error persistently in result area (not just toast)
+                        document.getElementById("result").innerHTML =
+                            `<span style="color:#c62828;font-weight:600;">⚠️ ${data.error}</span>`;
+                        return;
+                    }
+                    const countLine = data.cattle_count > 1
+                        ? `<strong>Cattle Spotted:</strong> ${data.cattle_count} (classified largest)<br>`
+                        : '';
+                    document.getElementById("result").innerHTML = `
+                        ${countLine}
+                        <strong>Breed:</strong> ${data.breed} <br>
+                        <strong>Confidence:</strong> ${data.confidence}% <br>
+                        <strong>Milk Production:</strong> ${data.milk_production} <br>
+                        <strong>Health Tips:</strong> ${data.health_tips}
+                    `;
+                    // Use base64 data URL (not blob URL) so image persists on refresh
+                    sessionStorage.setItem('scannedCattle', JSON.stringify({
+                        id: Date.now(),
+                        breed: data.breed,
+                        image: dataUrl
+                    }));
+                    document.getElementById('addCattleBtn').style.display = 'block';
+                })
+                .catch(err => {
+                    document.getElementById("spinner").style.display = "none";
+                    console.error(err);
+                    document.getElementById("result").innerHTML =
+                        `<span style="color:#c62828;font-weight:600;">⚠️ Prediction failed. Make sure the server is running and try again.</span>`;
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Animate feature cards on scroll AND on initial load
+        const cards = document.querySelectorAll('.feature-card');
+        function checkCards() {
+            const triggerBottom = window.innerHeight * 0.85;
+            cards.forEach(card => {
+                if (card.getBoundingClientRect().top < triggerBottom)
+                    card.classList.add('show');
+            });
+        }
+        window.addEventListener('scroll', checkCards);
+        document.addEventListener('DOMContentLoaded', checkCards);
+    </script>
+</body>
+
+</html>

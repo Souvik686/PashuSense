@@ -1,0 +1,11 @@
+# PashuSense - Python Dependencies
+# Install with:  pip install -r requirements.txt
+#
+# ⚠️  Requires Python 3.9 – 3.12  (TensorFlow does not support Python 3.13 yet)
+#     Use Google Colab (Python 3.12) or install Python 3.12 locally.
+
+flask>=3.0.0
+flask-cors>=4.0.0
+tensorflow==2.19.0
+numpy>=1.26.0,<2.2.0
+Pillow>=10.0.0
