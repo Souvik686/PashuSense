@@ -1,0 +1,36 @@
+# ============================================================
+# PashuSense — Auto-Deploy to Oracle Cloud via GitHub Actions
+# Every time you push to main → server pulls & restarts automatically
+#
+# SETUP (one time):
+#   GitHub repo → Settings → Secrets and variables → Actions → New secret
+#   Add these two secrets:
+#     ORACLE_HOST     = your Oracle VM public IP  (e.g. 140.238.1.23)
+#     ORACLE_SSH_KEY  = contents of your SSH private key file
+# ============================================================
+
+name: Deploy to Oracle Cloud
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: SSH deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pull latest code & restart service on Oracle VM
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ubuntu
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            cd ~/pashusense
+            git pull origin main
+            source venv/bin/activate
+            pip install -r requirements.txt --quiet
+            sudo systemctl restart pashusense
+            echo "✅ Deployed at $(date)"

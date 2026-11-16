@@ -20,6 +20,7 @@ Routes:
   GET  /<filename>   → static assets (plogo.png, etc.)
 """
 
+import os
 import numpy as np
 from pathlib import Path
 
@@ -188,7 +189,8 @@ def static_files(filename):
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("\n🚀 PashuSense running at http://localhost:8000")
-    print("   Login     → http://localhost:8000/")
-    print("   Dashboard → http://localhost:8000/dashboard\n")
-    app.run(host="0.0.0.0", port=8000, debug=False)
+    port = int(os.environ.get("PORT", 8000))   # 7860 on HF Spaces, 8000 locally
+    print(f"\n🚀 PashuSense running on port {port}")
+    print(f"   Login     → http://localhost:{port}/")
+    print(f"   Dashboard → http://localhost:{port}/dashboard\n")
+    app.run(host="0.0.0.0", port=port, debug=False)
