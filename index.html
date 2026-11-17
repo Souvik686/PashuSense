@@ -70,7 +70,8 @@
 
         nav {
             display: flex;
-            gap: 25px;
+            gap: 20px;
+            align-items: center;
         }
 
         nav a {
@@ -83,6 +84,35 @@
 
         nav a:hover {
             background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .user-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.18);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #ffffff;
+            margin-left: 8px;
+        }
+
+        .logout-btn {
+            background-color: #d32f2f;
+            color: #ffffff;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.15s;
+        }
+
+        .logout-btn:hover {
+            background-color: #b71c1c;
+            transform: scale(1.05);
         }
 
         /* DASHBOARD HERO */
@@ -344,6 +374,23 @@
         }
 
         @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px 20px;
+                text-align: center;
+            }
+
+            nav {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 10px;
+            }
+
+            .user-pill {
+                margin-left: 0;
+            }
+
             #dashboard {
                 flex-direction: column-reverse;
                 text-align: center;
@@ -372,6 +419,10 @@
             <a href="#" onclick="showDashboard()">Dashboard</a>
             <a href="#" onclick="showSection('myFarmSection')">My Farm</a>
             <a href="#" onclick="showSection('uploadSection')">Scan Cattle</a>
+            <div class="user-pill">
+                <span id="userGreeting">👤 <b id="userNameDisplay">Farmer</b></span>
+                <button type="button" onclick="handleLogout()" class="logout-btn" title="Sign Out">Logout</button>
+            </div>
         </nav>
     </header>
 
@@ -444,6 +495,40 @@
     <div id="toast">Cattle added to your farm!</div>
 
     <script>
+        // ── Auth Guard & Session Management ──────────────────────────────────
+        let currentUser = null;
+        try {
+            currentUser = JSON.parse(localStorage.getItem('pashu_current_user'));
+        } catch (e) {}
+
+        if (!currentUser || !currentUser.email) {
+            // Not authenticated, redirect to login
+            window.location.href = '/';
+        } else {
+            document.addEventListener('DOMContentLoaded', () => {
+                const nameEl = document.getElementById('userNameDisplay');
+                if (nameEl && currentUser.name) {
+                    nameEl.textContent = currentUser.name;
+                }
+                loadFarm();
+            });
+        }
+
+        function handleLogout() {
+            if (confirm("Are you sure you want to log out of PashuSense?")) {
+                localStorage.removeItem('pashu_current_user');
+                sessionStorage.removeItem('scannedCattle');
+                window.location.href = '/';
+            }
+        }
+
+        function getFarmKey() {
+            if (currentUser && currentUser.email) {
+                return 'farm_' + currentUser.email;
+            }
+            return 'myFarm';
+        }
+
         function showSection(id) {
             document.getElementById('dashboard').style.display = 'none';
             document.getElementById('uploadSection').style.display = 'none';
@@ -487,9 +572,10 @@
         }
 
         function saveToFarm(cattle) {
-            let farm = JSON.parse(localStorage.getItem('myFarm')) || [];
+            const key = getFarmKey();
+            let farm = JSON.parse(localStorage.getItem(key)) || [];
             farm.push(cattle);
-            localStorage.setItem('myFarm', JSON.stringify(farm));
+            localStorage.setItem(key, JSON.stringify(farm));
             sessionStorage.removeItem('scannedCattle');
             showAddCattle();
             loadFarm();
@@ -499,9 +585,10 @@
         function loadFarm() {
             const farmList = document.getElementById('farmList');
             farmList.innerHTML = '';
-            let farm = JSON.parse(localStorage.getItem('myFarm')) || [];
+            const key = getFarmKey();
+            let farm = JSON.parse(localStorage.getItem(key)) || [];
             if (farm.length === 0) {
-                farmList.innerHTML = '<li>No animals added yet.</li>';
+                farmList.innerHTML = '<li style="padding: 15px; color: #888;">No cattle saved yet. Scan an image and click "Add to My Farm"!</li>';
                 return;
             }
             farm.forEach(animal => {

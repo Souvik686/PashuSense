@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PashuSense - Login</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     body {
       margin: 0;
@@ -13,7 +13,9 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
       transition: background 0.5s;
     }
 
@@ -26,7 +28,8 @@
       padding: 2rem;
       border-radius: 20px;
       box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-      width: 350px;
+      width: 100%;
+      max-width: 380px;
       text-align: center;
       transition: transform 0.3s, box-shadow 0.3s;
     }
@@ -37,40 +40,62 @@
     }
 
     .logo {
-      width: 150px;
-      height: 150px;
+      width: 120px;
+      height: 120px;
       object-fit: cover;
-      /* margin-bottom: 1rem; */
+      border-radius: 50%;
+      margin-bottom: 0.5rem;
     }
 
     h2 {
-      /* margin-bottom: 1rem; */
+      margin: 0.5rem 0;
       color: #2f5d34;
+      font-size: 1.5rem;
+    }
+
+    .tagline {
+      margin-top: 0.25rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.9rem;
+      color: #555;
+      line-height: 1.4;
     }
 
     .tabs {
       display: flex;
       justify-content: space-around;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
       border-bottom: 2px solid #e0e0e0;
     }
 
     .tab {
       flex: 1;
-      padding: 0.5rem;
+      padding: 0.6rem;
       cursor: pointer;
-      font-weight: bold;
-      color: #2f5d34;
+      font-weight: 500;
+      color: #555;
       transition: color 0.3s, border-bottom 0.3s;
     }
 
     .tab:hover {
-      color: #1d3d22;
+      color: #2f5d34;
     }
 
     .tab.active {
       border-bottom: 3px solid #2f5d34;
-      color: #1d3d22;
+      color: #2f5d34;
+      font-weight: 700;
+    }
+
+    #authAlert {
+      display: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      font-size: 0.88rem;
+      font-weight: 500;
+      text-align: left;
+      line-height: 1.4;
     }
 
     .form {
@@ -83,41 +108,53 @@
     }
 
     input {
-      margin: 0.5rem 0;
-      padding: 0.75rem;
+      margin: 0.4rem 0;
+      padding: 0.75rem 0.9rem;
       border-radius: 10px;
       border: 1px solid #ccc;
       outline: none;
+      font-size: 0.95rem;
       transition: border 0.3s, box-shadow 0.3s;
     }
 
     input:focus {
       border: 1px solid #2f5d34;
-      box-shadow: 0 0 8px rgba(47,93,52,0.3);
+      box-shadow: 0 0 8px rgba(47,93,52,0.25);
     }
 
-    button {
-      margin-top: 1rem;
-      padding: 0.75rem;
+    button[type="submit"] {
+      margin-top: 0.8rem;
+      padding: 0.8rem;
       border: none;
       border-radius: 10px;
       background: #2f5d34;
       color: white;
       font-size: 1rem;
+      font-weight: 600;
       cursor: pointer;
       transition: background 0.3s, transform 0.2s, box-shadow 0.3s;
     }
 
-    button:hover {
+    button[type="submit"]:hover {
       background: #3d7a44;
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
 
-    p {
-      margin-top: 1rem;
-      font-size: 0.9rem;
-      color: #666;
+    .demo-hint {
+      margin-top: 1.2rem;
+      font-size: 0.82rem;
+      color: #777;
+      background: #f7f9f7;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px dashed #c8e6c9;
+    }
+
+    .demo-hint b {
+      color: #2f5d34;
+      cursor: pointer;
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -125,44 +162,188 @@
   <div class="container">
     <img src="plogo.png" alt="PashuSense Logo" class="logo">
     <h2>Welcome to PashuSense</h2>
-    <p><b>From breed to health — sense it all with PashuSense.
-Your cattle Our tech 🐄</b></p>
-    <div class="tabs">
-      <div class="tab active" onclick="showForm('signin', event)">Sign In</div>
-      <div class="tab" onclick="showForm('signup', event)">Sign Up</div>
-    </div>
+    <p class="tagline"><b>From breed to health — sense it all with PashuSense.</b><br>Your cattle, Our tech 🐄</p>
     
-    <form id="signin" class="form active">
-      <input type="email" placeholder="Email" required>
-      <input type="password" placeholder="Password" required>
+    <div class="tabs">
+      <div class="tab active" id="tabSignin" onclick="showForm('signin')">Sign In</div>
+      <div class="tab" id="tabSignup" onclick="showForm('signup')">Sign Up</div>
+    </div>
+
+    <!-- Alert Box for Errors & Success -->
+    <div id="authAlert"></div>
+    
+    <!-- Sign In Form -->
+    <form id="signin" class="form active" onsubmit="handleSignIn(event)">
+      <input type="email" id="signinEmail" placeholder="Email Address" required autocomplete="email">
+      <input type="password" id="signinPassword" placeholder="Password" required autocomplete="current-password">
       <button type="submit">Sign In</button>
     </form>
     
-    <form id="signup" class="form">
-      <input type="text" placeholder="Full Name" required>
-      <input type="email" placeholder="Email" required>
-      <input type="password" placeholder="Password" required>
-      <input type="password" placeholder="Confirm Password" required>
-      <button type="submit">Sign Up</button>
+    <!-- Sign Up Form -->
+    <form id="signup" class="form" onsubmit="handleSignUp(event)">
+      <input type="text" id="signupName" placeholder="Full Name" required autocomplete="name">
+      <input type="email" id="signupEmail" placeholder="Email Address" required autocomplete="email">
+      <input type="password" id="signupPassword" placeholder="Password (min 4 characters)" minlength="4" required autocomplete="new-password">
+      <input type="password" id="signupConfirmPassword" placeholder="Confirm Password" minlength="4" required autocomplete="new-password">
+      <button type="submit">Create Account</button>
     </form>
-    
-    
+
+    <div class="demo-hint">
+      Quick Test: <b onclick="fillDemo()">Use Demo Account</b><br>
+      (or create your own account via Sign Up)
+    </div>
   </div>
   
   <script>
-    function showForm(formId, event) {
+    // Auto-redirect if already signed in
+    (function checkSession() {
+      try {
+        const user = JSON.parse(localStorage.getItem('pashu_current_user'));
+        if (user && user.email) {
+          window.location.href = '/dashboard';
+        }
+      } catch (e) {}
+    })();
+
+    // Initialize Demo User if no users exist
+    function initUsers() {
+      try {
+        let users = JSON.parse(localStorage.getItem('pashu_users'));
+        if (!users || typeof users !== 'object') {
+          users = {
+            'demo@pashusense.com': {
+              name: 'Demo Farmer',
+              email: 'demo@pashusense.com',
+              password: 'password123',
+              createdAt: new Date().toISOString()
+            }
+          };
+          localStorage.setItem('pashu_users', JSON.stringify(users));
+        }
+        return users;
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function showForm(formId) {
       document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.getElementById(formId).classList.add('active');
-      event.target.classList.add('active');
+      document.getElementById(formId === 'signin' ? 'tabSignin' : 'tabSignup').classList.add('active');
+      hideAlert();
     }
 
-    document.querySelectorAll("form").forEach(form => {
-      form.addEventListener("submit", function(e) {
-        e.preventDefault();
-        window.location.href = "/dashboard"; // redirect to main dashboard after login
-      });
-    });
+    function showAlert(msg, isError = true) {
+      const alert = document.getElementById('authAlert');
+      alert.style.display = 'block';
+      alert.style.backgroundColor = isError ? '#ffebee' : '#e8f5e9';
+      alert.style.color = isError ? '#c62828' : '#2e7d32';
+      alert.style.border = isError ? '1px solid #ef9a9a' : '1px solid #a5d6a7';
+      alert.innerText = msg;
+    }
+
+    function hideAlert() {
+      const alert = document.getElementById('authAlert');
+      alert.style.display = 'none';
+      alert.innerText = '';
+    }
+
+    function fillDemo() {
+      showForm('signin');
+      document.getElementById('signinEmail').value = 'demo@pashusense.com';
+      document.getElementById('signinPassword').value = 'password123';
+      showAlert('Demo credentials filled! Click "Sign In".', false);
+    }
+
+    function handleSignIn(e) {
+      e.preventDefault();
+      hideAlert();
+
+      const email = document.getElementById('signinEmail').value.trim().toLowerCase();
+      const password = document.getElementById('signinPassword').value;
+
+      const users = initUsers();
+
+      if (!users[email]) {
+        showAlert('No account found with this email. Click "Sign Up" above to create one.', true);
+        return;
+      }
+
+      if (users[email].password !== password) {
+        showAlert('Incorrect password. Please try again.', true);
+        return;
+      }
+
+      const activeUser = {
+        name: users[email].name,
+        email: email
+      };
+
+      localStorage.setItem('pashu_current_user', JSON.stringify(activeUser));
+      showAlert(`Welcome back, ${users[email].name}! Entering PashuSense...`, false);
+
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 500);
+    }
+
+    function handleSignUp(e) {
+      e.preventDefault();
+      hideAlert();
+
+      const name = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+      const password = document.getElementById('signupPassword').value;
+      const confirmPassword = document.getElementById('signupConfirmPassword').value;
+
+      if (!name) {
+        showAlert('Please enter your full name.', true);
+        return;
+      }
+
+      if (password.length < 4) {
+        showAlert('Password must be at least 4 characters long.', true);
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showAlert('Passwords do not match. Please verify.', true);
+        return;
+      }
+
+      const users = initUsers();
+
+      if (users[email]) {
+        showAlert('An account with this email already exists. Please Sign In.', true);
+        return;
+      }
+
+      users[email] = {
+        name: name,
+        email: email,
+        password: password,
+        createdAt: new Date().toISOString()
+      };
+
+      localStorage.setItem('pashu_users', JSON.stringify(users));
+
+      // Auto login
+      const activeUser = {
+        name: name,
+        email: email
+      };
+      localStorage.setItem('pashu_current_user', JSON.stringify(activeUser));
+
+      showAlert(`Account created successfully! Welcome, ${name}! Entering dashboard...`, false);
+
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 600);
+    }
+
+    // Seed on script execution
+    initUsers();
   </script>
 </body>
 </html>
