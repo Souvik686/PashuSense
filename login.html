@@ -141,20 +141,17 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
 
-    .demo-hint {
-      margin-top: 1.2rem;
-      font-size: 0.82rem;
-      color: #777;
-      background: #f7f9f7;
-      padding: 8px;
-      border-radius: 8px;
-      border: 1px dashed #c8e6c9;
+    .switch-link {
+      margin-top: 1rem;
+      font-size: 0.88rem;
+      color: #666;
     }
 
-    .demo-hint b {
+    .switch-link a {
       color: #2f5d34;
-      cursor: pointer;
+      font-weight: 600;
       text-decoration: underline;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -172,26 +169,27 @@
     <!-- Alert Box for Errors & Success -->
     <div id="authAlert"></div>
     
-    <!-- Sign In Form -->
+    <!-- Sign In Form (Strict: Only registered users can sign in) -->
     <form id="signin" class="form active" onsubmit="handleSignIn(event)">
       <input type="email" id="signinEmail" placeholder="Email Address" required autocomplete="email">
       <input type="password" id="signinPassword" placeholder="Password" required autocomplete="current-password">
       <button type="submit">Sign In</button>
+      <div class="switch-link">
+        Don't have an account? <a onclick="showForm('signup')">Sign Up first</a>
+      </div>
     </form>
     
-    <!-- Sign Up Form -->
+    <!-- Sign Up Form (Required to create an account) -->
     <form id="signup" class="form" onsubmit="handleSignUp(event)">
       <input type="text" id="signupName" placeholder="Full Name" required autocomplete="name">
       <input type="email" id="signupEmail" placeholder="Email Address" required autocomplete="email">
       <input type="password" id="signupPassword" placeholder="Password (min 4 characters)" minlength="4" required autocomplete="new-password">
       <input type="password" id="signupConfirmPassword" placeholder="Confirm Password" minlength="4" required autocomplete="new-password">
       <button type="submit">Create Account</button>
+      <div class="switch-link">
+        Already registered? <a onclick="showForm('signin')">Sign In</a>
+      </div>
     </form>
-
-    <div class="demo-hint">
-      Quick Test: <b onclick="fillDemo()">Use Demo Account</b><br>
-      (or create your own account via Sign Up)
-    </div>
   </div>
   
   <script>
@@ -205,22 +203,11 @@
       } catch (e) {}
     })();
 
-    // Initialize Demo User if no users exist
-    function initUsers() {
+    // Retrieve all registered users from browser localStorage
+    function getUsers() {
       try {
-        let users = JSON.parse(localStorage.getItem('pashu_users'));
-        if (!users || typeof users !== 'object') {
-          users = {
-            'demo@pashusense.com': {
-              name: 'Demo Farmer',
-              email: 'demo@pashusense.com',
-              password: 'password123',
-              createdAt: new Date().toISOString()
-            }
-          };
-          localStorage.setItem('pashu_users', JSON.stringify(users));
-        }
-        return users;
+        const raw = localStorage.getItem('pashu_users');
+        return raw ? JSON.parse(raw) : {};
       } catch (e) {
         return {};
       }
@@ -249,13 +236,6 @@
       alert.innerText = '';
     }
 
-    function fillDemo() {
-      showForm('signin');
-      document.getElementById('signinEmail').value = 'demo@pashusense.com';
-      document.getElementById('signinPassword').value = 'password123';
-      showAlert('Demo credentials filled! Click "Sign In".', false);
-    }
-
     function handleSignIn(e) {
       e.preventDefault();
       hideAlert();
@@ -263,18 +243,21 @@
       const email = document.getElementById('signinEmail').value.trim().toLowerCase();
       const password = document.getElementById('signinPassword').value;
 
-      const users = initUsers();
+      const users = getUsers();
 
-      if (!users[email]) {
-        showAlert('No account found with this email. Click "Sign Up" above to create one.', true);
+      // STRICT CHECK: Without signup, nobody can sign in!
+      if (!users || Object.keys(users).length === 0 || !users[email]) {
+        showAlert('No account found with this email. You must Sign Up first before signing in!', true);
         return;
       }
 
+      // Check password
       if (users[email].password !== password) {
         showAlert('Incorrect password. Please try again.', true);
         return;
       }
 
+      // Valid user login
       const activeUser = {
         name: users[email].name,
         email: email
@@ -312,13 +295,14 @@
         return;
       }
 
-      const users = initUsers();
+      const users = getUsers();
 
       if (users[email]) {
         showAlert('An account with this email already exists. Please Sign In.', true);
         return;
       }
 
+      // Register new user account in localStorage
       users[email] = {
         name: name,
         email: email,
@@ -328,7 +312,7 @@
 
       localStorage.setItem('pashu_users', JSON.stringify(users));
 
-      // Auto login
+      // Auto login as newly registered user
       const activeUser = {
         name: name,
         email: email
@@ -341,9 +325,6 @@
         window.location.href = '/dashboard';
       }, 600);
     }
-
-    // Seed on script execution
-    initUsers();
   </script>
 </body>
 </html>
