@@ -1,23 +1,21 @@
 """
 PashuSense - High-Speed Production Server
 =========================================
-Optimized for instant responses on cloud instances (Render, Oracle Cloud, etc.)
-
-Uses custom MobileNetV2 trained on 5 cattle breeds directly from local weights.
-Zero external weight downloads. Instant inference (< 1 second).
+Optimized for instant responses and zero 502 errors on cloud instances (Render, etc.)
 """
 
 import os
+import threading
 import numpy as np
 from pathlib import Path
 
-# Reduce TensorFlow overhead & thread contention
+# Reduce TensorFlow log spam & thread contention on low-core instances
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 import tensorflow as tf
 
-# 1 thread for CPU inference prevents thread deadlocks & CPU throttling
+# 1 thread for CPU inference prevents thread deadlocks & CPU throttling on cloud
 tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.threading.set_intra_op_parallelism_threads(1)
 
@@ -30,12 +28,9 @@ from PIL import Image as PILImage
 from breed_data import breed_info
 
 BASE_DIR = Path(__file__).parent
-
-# Allowed static extensions
 ALLOWED_STATIC_EXT = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg", ".webp"}
 
 # Confidence Threshold: Real cows score 85%+ on their breed class.
-# Non-cattle images (humans, dogs, objects) score lower or split and get rejected.
 MIN_CONFIDENCE = 85.0
 
 # ─── Load Labels ──────────────────────────────────────────────────────────────
@@ -43,21 +38,64 @@ with open(BASE_DIR / "labels.txt") as f:
     labels = [line.strip() for line in f.readlines()]
 print(f"✅ Labels: {labels}")
 
-# ─── Load Model from Local File (Zero Network Downloads) ──────────────────────
-print("⏳ Loading cattle breed model from local weights...")
-_base = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
-_base.trainable = False
+# ─── Safe Model Loader with Background Warmup ─────────────────────────────────
+breed_model = None
+_model_lock = threading.Lock()
 
-breed_model = models.Sequential([
-    _base,
-    layers.GlobalAveragePooling2D(),
-    layers.Dense(128, activation="relu"),
-    layers.Dropout(0.3),
-    layers.Dense(5, activation="softmax"),
-])
-breed_model.load_weights(str(BASE_DIR / "cattle_breed_model.h5"))
-breed_model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
-print("✅ Cattle breed model loaded and ready!")
+
+def load_breed_model():
+    """
+    Safely loads cattle_breed_model.h5 from local repository.
+    Includes fallback if weights=None has layer shape variance.
+    """
+    global breed_model
+    with _model_lock:
+        if breed_model is not None:
+            return breed_model
+
+        try:
+            print("⏳ Loading cattle breed model from local weights...")
+            _base = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
+            _base.trainable = False
+
+            m = models.Sequential([
+                _base,
+                layers.GlobalAveragePooling2D(),
+                layers.Dense(128, activation="relu"),
+                layers.Dropout(0.3),
+                layers.Dense(5, activation="softmax"),
+            ])
+            m.load_weights(str(BASE_DIR / "cattle_breed_model.h5"))
+            m.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+            breed_model = m
+            print("✅ Cattle breed model loaded and ready!")
+            return breed_model
+
+        except Exception as err1:
+            print(f"⚠️ Primary model load notice: {err1}. Trying standard architecture...")
+            try:
+                _base = MobileNetV2(weights="imagenet", include_top=False, input_shape=(224, 224, 3))
+                _base.trainable = False
+
+                m = models.Sequential([
+                    _base,
+                    layers.GlobalAveragePooling2D(),
+                    layers.Dense(128, activation="relu"),
+                    layers.Dropout(0.3),
+                    layers.Dense(5, activation="softmax"),
+                ])
+                m.load_weights(str(BASE_DIR / "cattle_breed_model.h5"))
+                m.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+                breed_model = m
+                print("✅ Fallback model loaded and ready!")
+                return breed_model
+            except Exception as err2:
+                print(f"❌ Critical model load failure: {err2}")
+                raise err2
+
+
+# Warm up model in background so the HTTP port binds immediately on startup
+threading.Thread(target=load_breed_model, daemon=True).start()
 
 # ─── Flask App ────────────────────────────────────────────────────────────────
 app = Flask(__name__, template_folder=str(BASE_DIR))
@@ -78,7 +116,11 @@ def dashboard():
 
 @app.route("/healthz")
 def healthz():
-    return jsonify({"status": "healthy"}), 200
+    """Health check endpoint used by Render / cloud monitors."""
+    return jsonify({
+        "status": "healthy",
+        "model_loaded": breed_model is not None
+    }), 200
 
 
 # ── Prediction API ────────────────────────────────────────────────────────────
@@ -95,21 +137,23 @@ def predict():
 
         file = request.files["file"]
 
-        # Read and resize image in memory
+        # Ensure model is ready
+        model = load_breed_model()
+
+        # Read and resize image directly in memory
         img = PILImage.open(file.stream).convert("RGB").resize((224, 224))
         img_arr = np.array(img, dtype="float32") / 255.0
         x = np.expand_dims(img_arr, axis=0)
 
         # Predict
-        preds = breed_model.predict(x, verbose=0)[0]
+        preds = model.predict(x, verbose=0)[0]
         sorted_probs = np.sort(preds)
         top1_prob = sorted_probs[-1]
         top2_prob = sorted_probs[-2]
         confidence = round(float(top1_prob) * 100, 2)
         idx = int(np.argmax(preds))
 
-        # Margin check: on clear cattle images, the top class dominates (>85% and margin > 50%)
-        # On dogs, humans, or non-cattle objects, probabilities are scattered or low.
+        # Margin check: on clear cattle images, the top class dominates (>85% and margin > 40%)
         margin = float(top1_prob - top2_prob)
 
         if confidence < MIN_CONFIDENCE or margin < 0.40:
