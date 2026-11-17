@@ -533,11 +533,17 @@
                     method: "POST",
                     body: formData
                 })
-                .then(response => response.json())
+                .then(async response => {
+                    const data = await response.json().catch(() => null);
+                    if (!response.ok) {
+                        const errMsg = (data && data.error) ? data.error : `Server returned error (${response.status})`;
+                        throw new Error(errMsg);
+                    }
+                    return data;
+                })
                 .then(data => {
                     document.getElementById("spinner").style.display = "none";
                     if (data.error) {
-                        // Show error persistently in result area (not just toast)
                         document.getElementById("result").innerHTML =
                             `<span style="color:#c62828;font-weight:600;">⚠️ ${data.error}</span>`;
                         return;
@@ -552,7 +558,6 @@
                         <strong>Milk Production:</strong> ${data.milk_production} <br>
                         <strong>Health Tips:</strong> ${data.health_tips}
                     `;
-                    // Use base64 data URL (not blob URL) so image persists on refresh
                     sessionStorage.setItem('scannedCattle', JSON.stringify({
                         id: Date.now(),
                         breed: data.breed,
@@ -564,7 +569,7 @@
                     document.getElementById("spinner").style.display = "none";
                     console.error(err);
                     document.getElementById("result").innerHTML =
-                        `<span style="color:#c62828;font-weight:600;">⚠️ Prediction failed. Make sure the server is running and try again.</span>`;
+                        `<span style="color:#c62828;font-weight:600;">⚠️ ${err.message || 'Prediction failed. Try again.'}</span>`;
                 });
             };
             reader.readAsDataURL(file);

@@ -1,73 +1,65 @@
 """
-PashuSense - Local Flask Server
-================================
-Run with:  python app.py
-Open:      http://localhost:8000
+PashuSense - Production Flask Server
+====================================
+Optimized for local and cloud deployment (Render, Oracle Cloud, etc.)
 
-Two-stage prediction pipeline (no extra packages beyond requirements.txt):
-
+Pipeline:
   Stage 1 — ImageNet pre-screen (MobileNetV2, 1000 classes)
-            Checks if the image actually contains a cow/cattle.
-            Rejects dogs, humans, objects, random photos.
+            Detects if image contains cattle (ox, water buffalo, bison).
+            Rejects dogs, humans, furniture, non-cattle objects.
 
-  Stage 2 — Breed classifier (MobileNetV2, 5 classes, your trained weights)
-            Identifies the specific cattle breed.
-
-Routes:
-  GET  /             → login.html
-  GET  /dashboard    → index.html
-  POST /predict      → prediction API (returns JSON)
-  GET  /<filename>   → static assets (plogo.png, etc.)
+  Stage 2 — Breed classifier (Custom MobileNetV2, 5 classes)
+            Classifies specific cattle breed and fetches production & health data.
 """
 
 import os
 import numpy as np
 from pathlib import Path
 
+# Reduce TensorFlow log spam & thread contention on low-core instances
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+
+import tensorflow as tf
+
+# Limit TF threads to 1 to prevent thread deadlocks with Gunicorn on cloud CPUs
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.threading.set_intra_op_parallelism_threads(1)
+
 from flask import Flask, request, render_template, send_from_directory, jsonify
 from flask_cors import CORS
 from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras.applications.mobilenet_v2 import (
-    preprocess_input,
-    decode_predictions,
-)
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras import layers, models
 from PIL import Image as PILImage
 
 from breed_data import breed_info
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
-BASE_DIR    = Path(__file__).parent
-UPLOAD_PATH = BASE_DIR / "uploaded.jpg"
+BASE_DIR = Path(__file__).parent
 
 # ─── Settings ─────────────────────────────────────────────────────────────────
-# ImageNet synsets that count as cattle (Keras ImageNet class IDs)
-CATTLE_SYNSETS = {
-    "n02403003",   # ox / domestic cattle (dairy cows, beef cattle, all breeds)
-    "n02408429",   # water buffalo
-}
+# Direct ImageNet class indices for bovines (0-indexed):
+# 345: 'ox', 346: 'water_buffalo', 347: 'bison'
+# No external JSON file download required.
+CATTLE_CLASS_INDICES = {345, 346, 347}
+IMAGENET_TOP_K = 25
 
-# How many top ImageNet predictions to check for cattle
-IMAGENET_TOP_K = 10
-
-# Minimum breed confidence to return a result (rejects unclear cattle photos)
+# Minimum breed confidence to return a prediction
 MIN_BREED_CONFIDENCE = 55.0
 
 # Allowed extensions for the static-file catch-all route
 ALLOWED_STATIC_EXT = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg", ".webp"}
 
 # ─── Stage 1: ImageNet screener ───────────────────────────────────────────────
-# Full MobileNetV2 (1000-class ImageNet) — knows what a real cow looks like.
-# Rejects images where no cattle-related class appears in the top-K predictions.
 print("⏳ Loading ImageNet screener...")
 screener = MobileNetV2(weights="imagenet", include_top=True)
 print("✅ ImageNet screener ready.")
 
 # ─── Stage 2: Cattle breed classifier ────────────────────────────────────────
-# Your custom MobileNetV2 (trained on 5 cattle breeds).
-# The .h5 file has WEIGHTS ONLY — architecture must be built first.
 print("⏳ Loading breed classifier...")
-_base = MobileNetV2(weights="imagenet", include_top=False, input_shape=(224, 224, 3))
+# weights=None avoids downloading duplicate ImageNet weights that get overwritten
+_base = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
 _base.trainable = False
 
 breed_model = models.Sequential([
@@ -94,15 +86,17 @@ CORS(app)
 def is_cattle(img_array: np.ndarray) -> bool:
     """
     Returns True if the image contains cattle/bovine animals.
-    Uses full ImageNet MobileNetV2 — checks top-K predictions for cattle synsets.
-    img_array: uint8 numpy array shape (224, 224, 3)
+    Uses top-K predictions of MobileNetV2 without external network lookups.
     """
-    # MobileNetV2 expects [-1, 1] range via preprocess_input
-    x = preprocess_input(np.expand_dims(img_array.astype("float32"), axis=0))
-    preds = screener.predict(x, verbose=0)
-    top_k = decode_predictions(preds, top=IMAGENET_TOP_K)[0]
-    # top_k is a list of (synset_id, label, probability)
-    return any(synset_id in CATTLE_SYNSETS for synset_id, _, _ in top_k)
+    try:
+        x = preprocess_input(np.expand_dims(img_array.astype("float32"), axis=0))
+        preds = screener.predict(x, verbose=0)
+        top_indices = np.argsort(preds[0])[-IMAGENET_TOP_K:]
+        return bool(set(top_indices) & CATTLE_CLASS_INDICES)
+    except Exception as e:
+        print(f"⚠️ Screener check warning: {e}")
+        # If screener encounters an issue, fallback to classifier
+        return True
 
 
 # ── Page routes ───────────────────────────────────────────────────────────────
@@ -125,55 +119,48 @@ def dashboard():
 def predict():
     """
     Two-stage cattle breed prediction.
-
-    POST /predict  (multipart/form-data, field: 'file')
-
-    Stage 1 — ImageNet screen:  is there actually a cow in this image?
-    Stage 2 — Breed classify:   which of the 5 breeds is it?
-
-    Success: { breed, confidence, milk_production, health_tips }
-    Failure: { error: "..." }
+    Processes image completely in-memory (no disk writes).
     """
-    # Validate upload
-    if "file" not in request.files or request.files["file"].filename == "":
-        return jsonify({"error": "No file uploaded."}), 400
+    try:
+        if "file" not in request.files or request.files["file"].filename == "":
+            return jsonify({"error": "No file uploaded."}), 400
 
-    # Save uploaded file
-    request.files["file"].save(str(UPLOAD_PATH))
+        file = request.files["file"]
 
-    # Load & resize to 224×224
-    img      = PILImage.open(str(UPLOAD_PATH)).convert("RGB").resize((224, 224))
-    img_arr  = np.array(img)   # shape (224, 224, 3), dtype uint8
+        # Read directly from request stream (faster, avoids disk I/O conflicts)
+        img = PILImage.open(file.stream).convert("RGB").resize((224, 224))
+        img_arr = np.array(img)
 
-    # ── Stage 1: Does this image contain a cow? ───────────────────────────────
-    if not is_cattle(img_arr):
+        # ── Stage 1: Is it a cow?
+        if not is_cattle(img_arr):
+            return jsonify({
+                "error": "This does not appear to be a cattle image. Please upload a clear photo of a cow."
+            }), 200
+
+        # ── Stage 2: Breed Classification
+        x = np.expand_dims(img_arr.astype("float32") / 255.0, axis=0)
+        preds = breed_model.predict(x, verbose=0)
+        idx = int(np.argmax(preds[0]))
+        confidence = round(float(np.max(preds[0])) * 100, 2)
+
+        if confidence < MIN_BREED_CONFIDENCE:
+            return jsonify({
+                "error": f"Cattle detected, but breed is unclear ({confidence}% confidence). Try a closer or clearer photo."
+            }), 200
+
+        breed = labels[idx]
+        info = breed_info.get(breed, {"milk_production": "N/A", "health_tips": "N/A"})
+
         return jsonify({
-            "error": "This does not appear to be a cattle image. "
-                     "Please upload a clear, close-up photo of a cow."
+            "breed": breed,
+            "confidence": confidence,
+            "milk_production": info["milk_production"],
+            "health_tips": info["health_tips"],
         })
 
-    # ── Stage 2: Which breed? ─────────────────────────────────────────────────
-    # Breed model uses [0, 1] normalization (different from screener!)
-    x          = np.expand_dims(img_arr / 255.0, axis=0)
-    preds      = breed_model.predict(x, verbose=0)
-    idx        = int(np.argmax(preds[0]))
-    confidence = round(float(np.max(preds[0])) * 100, 2)
-
-    if confidence < MIN_BREED_CONFIDENCE:
-        return jsonify({
-            "error": f"Cattle detected but breed is unclear ({confidence}% confidence). "
-                     "Try a closer or clearer photo of the cow."
-        })
-
-    breed = labels[idx]
-    info  = breed_info.get(breed, {"milk_production": "N/A", "health_tips": "N/A"})
-
-    return jsonify({
-        "breed":           breed,
-        "confidence":      confidence,
-        "milk_production": info["milk_production"],
-        "health_tips":     info["health_tips"],
-    })
+    except Exception as e:
+        print(f"❌ Prediction error: {e}")
+        return jsonify({"error": f"Internal prediction error: {str(e)}"}), 500
 
 
 # ── Static file catch-all (always last) ──────────────────────────────────────
@@ -189,7 +176,7 @@ def static_files(filename):
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))   # 7860 on HF Spaces, 8000 locally
+    port = int(os.environ.get("PORT", 8000))
     print(f"\n🚀 PashuSense running on port {port}")
     print(f"   Login     → http://localhost:{port}/")
     print(f"   Dashboard → http://localhost:{port}/dashboard\n")
