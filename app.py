@@ -13,6 +13,7 @@ Pipeline:
 """
 
 import os
+import threading
 import numpy as np
 from pathlib import Path
 
@@ -41,7 +42,6 @@ BASE_DIR = Path(__file__).parent
 # ─── Settings ─────────────────────────────────────────────────────────────────
 # Direct ImageNet class indices for bovines (0-indexed):
 # 345: 'ox', 346: 'water_buffalo', 347: 'bison'
-# No external JSON file download required.
 CATTLE_CLASS_INDICES = {345, 346, 347}
 IMAGENET_TOP_K = 25
 
@@ -51,27 +51,57 @@ MIN_BREED_CONFIDENCE = 55.0
 # Allowed extensions for the static-file catch-all route
 ALLOWED_STATIC_EXT = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg", ".webp"}
 
-# ─── Stage 1: ImageNet screener ───────────────────────────────────────────────
-print("⏳ Loading ImageNet screener...")
-screener = MobileNetV2(weights="imagenet", include_top=True)
-print("✅ ImageNet screener ready.")
+# ─── Lazy Model Loading ───────────────────────────────────────────────────────
+# Models are loaded in background thread or upon first prediction request.
+# This allows the server to bind the HTTP port IMMEDIATELY so cloud health
+# checks (Render, Heroku, etc.) pass in 1 second instead of hanging.
 
-# ─── Stage 2: Cattle breed classifier ────────────────────────────────────────
-print("⏳ Loading breed classifier...")
-# weights=None avoids downloading duplicate ImageNet weights that get overwritten
-_base = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
-_base.trainable = False
+_screener = None
+_breed_model = None
+_model_lock = threading.Lock()
 
-breed_model = models.Sequential([
-    _base,
-    layers.GlobalAveragePooling2D(),
-    layers.Dense(128, activation="relu"),
-    layers.Dropout(0.3),
-    layers.Dense(5, activation="softmax"),
-])
-breed_model.load_weights(str(BASE_DIR / "cattle_breed_model.h5"))
-breed_model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
-print("✅ Breed classifier ready.")
+
+def get_screener():
+    global _screener
+    with _model_lock:
+        if _screener is None:
+            print("⏳ Loading ImageNet screener...")
+            _screener = MobileNetV2(weights="imagenet", include_top=True)
+            print("✅ ImageNet screener ready.")
+        return _screener
+
+
+def get_breed_model():
+    global _breed_model
+    with _model_lock:
+        if _breed_model is None:
+            print("⏳ Loading breed classifier...")
+            _base = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
+            _base.trainable = False
+
+            m = models.Sequential([
+                _base,
+                layers.GlobalAveragePooling2D(),
+                layers.Dense(128, activation="relu"),
+                layers.Dropout(0.3),
+                layers.Dense(5, activation="softmax"),
+            ])
+            m.load_weights(str(BASE_DIR / "cattle_breed_model.h5"))
+            m.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+            _breed_model = m
+            print("✅ Breed classifier ready.")
+        return _breed_model
+
+
+# Warm up models in a background thread so port binds immediately
+def _warmup_background():
+    try:
+        get_screener()
+        get_breed_model()
+    except Exception as e:
+        print(f"⚠️ Background warmup note: {e}")
+
+threading.Thread(target=_warmup_background, daemon=True).start()
 
 # ─── Labels ───────────────────────────────────────────────────────────────────
 with open(BASE_DIR / "labels.txt") as f:
@@ -89,8 +119,9 @@ def is_cattle(img_array: np.ndarray) -> bool:
     Uses top-K predictions of MobileNetV2 without external network lookups.
     """
     try:
+        screener_model = get_screener()
         x = preprocess_input(np.expand_dims(img_array.astype("float32"), axis=0))
-        preds = screener.predict(x, verbose=0)
+        preds = screener_model.predict(x, verbose=0)
         top_indices = np.argsort(preds[0])[-IMAGENET_TOP_K:]
         return bool(set(top_indices) & CATTLE_CLASS_INDICES)
     except Exception as e:
@@ -111,6 +142,12 @@ def login_page():
 def dashboard():
     """Main dashboard (reached after login)."""
     return render_template("index.html")
+
+
+@app.route("/healthz")
+def healthz():
+    """Health check endpoint for cloud platforms."""
+    return jsonify({"status": "healthy"}), 200
 
 
 # ── Prediction API ────────────────────────────────────────────────────────────
@@ -138,8 +175,9 @@ def predict():
             }), 200
 
         # ── Stage 2: Breed Classification
+        model = get_breed_model()
         x = np.expand_dims(img_arr.astype("float32") / 255.0, axis=0)
-        preds = breed_model.predict(x, verbose=0)
+        preds = model.predict(x, verbose=0)
         idx = int(np.argmax(preds[0]))
         confidence = round(float(np.max(preds[0])) * 100, 2)
 

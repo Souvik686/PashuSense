@@ -1,9 +1,7 @@
-# PashuSense - Python Dependencies
-# Optimized for Cloud Deployment & Local Execution (Python 3.10 - 3.12)
-
-flask>=3.0.0
-flask-cors>=4.0.0
-gunicorn>=21.2.0
-tensorflow-cpu>=2.16.0,<=2.18.0
-numpy>=1.26.0,<2.2.0
-Pillow>=10.0.0
+# PashuSense - Pinned Dependencies for Instant Cloud Build (Python 3.11)
+flask==3.0.3
+flask-cors==4.0.1
+gunicorn==22.0.0
+tensorflow-cpu==2.18.0
+numpy==1.26.4
+Pillow==10.3.0
