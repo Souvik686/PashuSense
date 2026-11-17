@@ -166,7 +166,12 @@ def predict():
         file = request.files["file"]
 
         # Read and resize image in memory
-        img = PILImage.open(file.stream).convert("RGB").resize((224, 224))
+        try:
+            img = PILImage.open(file.stream).convert("RGB").resize((224, 224))
+        except Exception:
+            return jsonify({
+                "error": "Could not read image file. Please upload a standard JPG, JPEG, PNG, or WebP photo."
+            }), 200
         x = np.expand_dims(np.array(img, dtype="float32") / 255.0, axis=0)
 
         # Execute prediction
