@@ -63,13 +63,6 @@ The model is a custom-trained **MobileNetV2** classifier, exported to **TensorFl
 
 <img src="screenshots/my-farm.png" alt="My Farm" width="800"/>
 
----:|:---:|
-| <img src="screenshots/login.png" alt="Login page" width="460"/> | <img src="screenshots/dashboard.png" alt="Dashboard" width="460"/> |
-| **Scan Cattle — breed prediction** | **My Farm — saved cattle** |
-| <img src="screenshots/scan-cattle.png" alt="Scan cattle" width="460"/> | <img src="screenshots/my-farm.png" alt="My Farm" width="460"/> |
-
----
-
 ## ✨ Features
 
 * **🔍 Instant Breed Recognition:** Upload a cattle photo and get the predicted breed with a confidence score.
